@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, FileText, Activity, User, Bell, X, Loader2, AlertCircle, Trash2, Eye, RefreshCw, TrendingUp } from 'lucide-react'; 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
