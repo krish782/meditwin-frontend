@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Activity, User, Bell, X, Loader2, AlertCircle, Trash2, Eye, Download, RefreshCw, TrendingUp } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { Upload, FileText, Activity, User, Bell, X, Loader2, AlertCircle, Trash2, Eye, RefreshCw, TrendingUp } from 'lucide-react'; 
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 const API_BASE = 'https://meditwin-backend-production.up.railway.app';
 
@@ -57,7 +57,6 @@ function App() {
   const [viewMode, setViewMode] = useState<'analysis' | 'raw'>('analysis');
   const [showCharts, setShowCharts] = useState(false);
   const [chartData, setChartData] = useState<any>(null);
-  const [loadingCharts, setLoadingCharts] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -1046,57 +1045,6 @@ const explainDocument = async (doc: Document) => {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function UploadCard({ 
-  title, 
-  subtitle, 
-  description, 
-  icon, 
-  onUpload,
-  uploading 
-}: { 
-  title: string;
-  subtitle: string;
-  description: string;
-  icon: React.ReactNode;
-  onUpload: (file: File) => void;
-  uploading: boolean;
-}) {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onUpload(file);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <div className="flex items-center gap-2 mb-6">
-        {icon}
-        <h3 className="font-bold text-gray-900">{title}</h3>
-      </div>
-
-      <label className="block cursor-pointer">
-        <input
-          type="file"
-          accept=".pdf"
-          onChange={handleFileChange}
-          disabled={uploading}
-          className="hidden"
-        />
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
-          {uploading ? (
-            <Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-3 animate-spin" />
-          ) : (
-            <Upload className="w-12 h-12 text-blue-400 mx-auto mb-3" />
-          )}
-          <div className="font-semibold text-gray-900 mb-1">{subtitle}</div>
-          <div className="text-sm text-gray-500">{description}</div>
-        </div>
-      </label>
     </div>
   );
 }
