@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Activity, User, Bell, X, Loader2, AlertCircle, Trash2, Eye, RefreshCw, TrendingUp } from 'lucide-react'; 
+import { Upload, FileText, Activity, User, Bell, X, Loader2, AlertCircle, Trash2, Eye, RefreshCw, TrendingUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
+
 const API_BASE = 'https://meditwin-backend-production.up.railway.app';
+
 
 interface Document {
   id: string;
@@ -57,6 +59,9 @@ function App() {
   const [viewMode, setViewMode] = useState<'analysis' | 'raw'>('analysis');
   const [showCharts, setShowCharts] = useState(false);
   const [chartData, setChartData] = useState<any>(null);
+  const [healthScore, setHealthScore] = useState<any>(null);
+  const [loadingHealthScore, setLoadingHealthScore] = useState(false);
+  const [showHealthScore, setShowHealthScore] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -80,7 +85,7 @@ function App() {
       setLoading(true);
       const res = await fetch(`${API_BASE}/api/documents`);
       const data = await res.json();
-      setDocuments(data.sort((a: Document, b: Document) => 
+      setDocuments(data.sort((a: Document, b: Document) =>
         new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
       ));
     } catch (err) {
@@ -114,7 +119,7 @@ function App() {
 
       alert(`✅ Document uploaded successfully!\n${data.validationStatus || ''}`);
       await fetchDocuments();
-      
+
     } catch (err) {
       console.error('Upload failed:', err);
       alert('❌ Upload failed. Check console for details.');
@@ -155,106 +160,141 @@ function App() {
     setErrorMessage(null);
   };
 
-// In your explainDocument function in App.tsx, replace the error handling section:
+  // In your explainDocument function in App.tsx, replace the error handling section:
 
-// In your explainDocument function in App.tsx, replace the error handling section:
+  // In your explainDocument function in App.tsx, replace the error handling section:
 
-// In your explainDocument function in App.tsx, replace the error handling section:
+  // In your explainDocument function in App.tsx, replace the error handling section:
 
-const explainDocument = async (doc: Document) => {
-  setAnalyzingDoc(doc.id);
+  const explainDocument = async (doc: Document) => {
+    setAnalyzingDoc(doc.id);
+    setSelectedDoc(doc);
+    setViewMode('analysis');
+    setAnalysis(null);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/explain-document/${doc.id}`);
+
+      // Check if response is OK (status 200-299)
+      if (!res.ok) {
+        // Try to get error details from response
+        let errorDetail = 'Failed to analyze document';
+        try {
+          const errorData = await res.json();
+          errorDetail = errorData.detail || errorData.message || errorDetail;
+        } catch {
+          // If JSON parsing fails, use status text
+          errorDetail = `Server error: ${res.status} ${res.statusText}`;
+        }
+
+        console.error('Analysis failed with status:', res.status, errorDetail);
+        setErrorMessage(errorDetail);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setErrorMessage(data.message || 'Analysis failed');
+        return;
+      }
+
+      if (data.aiAnalysis?.error) {
+        setAnalysis({
+          summary: data.aiAnalysis.raw?.substring(0, 200) + '...' || 'Analysis failed',
+          keyFindings: [],
+          diabetesInfo: null,
+          recommendations: []
+        });
+        return;
+      }
+
+      const aiAnalysis = typeof data.aiAnalysis === 'string'
+        ? JSON.parse(data.aiAnalysis)
+        : data.aiAnalysis;
+
+      // Debug: Check what we received
+      console.log('=== AI ANALYSIS DEBUG ===');
+      console.log('Full response:', data);
+      console.log('Doctor Questions:', aiAnalysis.doctorQuestions);
+      console.log('Questions length:', aiAnalysis.doctorQuestions?.length);
+      console.log('Key Findings:', aiAnalysis.keyFindings);
+      console.log('Trends:', data.trends);
+      console.log('========================');
+
+      // Normalize keyFindings - handle both string arrays and object arrays
+      let normalizedFindings: string[] = [];
+      if (Array.isArray(aiAnalysis.keyFindings)) {
+        normalizedFindings = aiAnalysis.keyFindings.map((finding: any) => {
+          // If it's an object with a 'finding' property, extract it
+          if (typeof finding === 'object' && finding !== null) {
+            return finding.finding || finding.text || finding.value || JSON.stringify(finding);
+          }
+          // If it's already a string, use it
+          return String(finding);
+        });
+      }
+
+      // Set trends data
+      if (data.trends) {
+        setTrends(data.trends);
+      }
+
+      // Set severity data
+      if (data.severity) {
+        setSeverity(data.severity);
+      }
+
+      setAnalysis({
+        summary: aiAnalysis.summary || 'No summary available',
+        keyFindings: normalizedFindings,
+        diabetesInfo: aiAnalysis.diabetesInfo || null,
+        recommendations: Array.isArray(aiAnalysis.recommendations) ? aiAnalysis.recommendations : [],
+        doctorQuestions: Array.isArray(aiAnalysis.doctorQuestions) ? aiAnalysis.doctorQuestions : [],
+        criticalAlerts: aiAnalysis.criticalAlerts || null
+      });
+
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      setErrorMessage(`Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setAnalyzingDoc(null);
+    }
+  };
+
+const fetchHealthScore = async (doc: Document) => {
+  setLoadingHealthScore(true);
+  setHealthScore(null);
+  setShowHealthScore(true);
+  
+  // Don't set selectedDoc here - we'll use it separately
   setSelectedDoc(doc);
+  
+  // Close any existing analysis view
   setViewMode('analysis');
   setAnalysis(null);
   setErrorMessage(null);
 
   try {
-    const res = await fetch(`${API_BASE}/api/explain-document/${doc.id}`);
+    const res = await fetch(`${API_BASE}/api/health-score/${doc.id}`);
     
-    // Check if response is OK (status 200-299)
     if (!res.ok) {
-      // Try to get error details from response
-      let errorDetail = 'Failed to analyze document';
-      try {
-        const errorData = await res.json();
-        errorDetail = errorData.detail || errorData.message || errorDetail;
-      } catch {
-        // If JSON parsing fails, use status text
-        errorDetail = `Server error: ${res.status} ${res.statusText}`;
-      }
-      
-      console.error('Analysis failed with status:', res.status, errorDetail);
-      setErrorMessage(errorDetail);
-      return;
+      throw new Error('Failed to fetch health score');
     }
 
     const data = await res.json();
 
-    if (!data.success) {
-      setErrorMessage(data.message || 'Analysis failed');
-      return;
+    if (data.success) {
+      setHealthScore(data.healthScore);
+      console.log('Health Score:', data.healthScore);
     }
-
-    if (data.aiAnalysis?.error) {
-      setAnalysis({
-        summary: data.aiAnalysis.raw?.substring(0, 200) + '...' || 'Analysis failed',
-        keyFindings: [],
-        diabetesInfo: null,
-        recommendations: []
-      });
-      return;
-    }
-
-    const aiAnalysis = typeof data.aiAnalysis === 'string'
-      ? JSON.parse(data.aiAnalysis)
-      : data.aiAnalysis;
-
-    // Debug: Check what we received
-    console.log('=== AI ANALYSIS DEBUG ===');
-    console.log('Full response:', data);
-    console.log('Doctor Questions:', aiAnalysis.doctorQuestions);
-    console.log('Questions length:', aiAnalysis.doctorQuestions?.length);
-    console.log('Key Findings:', aiAnalysis.keyFindings);
-    console.log('Trends:', data.trends);
-    console.log('========================');
-
-    // Normalize keyFindings - handle both string arrays and object arrays
-    let normalizedFindings: string[] = [];
-    if (Array.isArray(aiAnalysis.keyFindings)) {
-      normalizedFindings = aiAnalysis.keyFindings.map((finding: any) => {
-        // If it's an object with a 'finding' property, extract it
-        if (typeof finding === 'object' && finding !== null) {
-          return finding.finding || finding.text || finding.value || JSON.stringify(finding);
-        }
-        // If it's already a string, use it
-        return String(finding);
-      });
-    }
-
-    // Set trends data
-    if (data.trends) {
-      setTrends(data.trends);
-    }
-
-    // Set severity data
-    if (data.severity) {
-      setSeverity(data.severity);
-    }
-
-    setAnalysis({
-      summary: aiAnalysis.summary || 'No summary available',
-      keyFindings: normalizedFindings,
-      diabetesInfo: aiAnalysis.diabetesInfo || null,
-      recommendations: Array.isArray(aiAnalysis.recommendations) ? aiAnalysis.recommendations : [],
-      doctorQuestions: Array.isArray(aiAnalysis.doctorQuestions) ? aiAnalysis.doctorQuestions : [],
-      criticalAlerts: aiAnalysis.criticalAlerts || null
-    });
-
   } catch (err) {
-    console.error('Analysis failed:', err);
-    setErrorMessage(`Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    console.error('Health score fetch failed:', err);
+    alert('Failed to load health score');
+    setShowHealthScore(false);
   } finally {
-    setAnalyzingDoc(null);
+    setLoadingHealthScore(false);
   }
 };
 
@@ -296,7 +336,7 @@ const explainDocument = async (doc: Document) => {
             </div>
             <h1 className="text-xl font-bold text-gray-900">MediTwin Lite</h1>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <button
               onClick={fetchDocuments}
@@ -337,13 +377,13 @@ const explainDocument = async (doc: Document) => {
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
                 <Upload className="w-8 h-8 text-blue-600" />
               </div>
-              
+
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-white mb-2">Upload Medical Document</h3>
                 <p className="text-blue-100 mb-4">
                   Lab reports, prescriptions, discharge summaries, diabetes screenings - we'll automatically detect the type
                 </p>
-                
+
                 <label className="block cursor-pointer">
                   <input
                     type="file"
@@ -376,7 +416,7 @@ const explainDocument = async (doc: Document) => {
                 <div className="mt-4 flex items-start gap-2 text-blue-100 text-sm">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-white">Note:</strong> Only medical documents accepted. 
+                    <strong className="text-white">Note:</strong> Only medical documents accepted.
                     Non-medical files (train tickets, invoices) will be automatically rejected.
                   </div>
                 </div>
@@ -410,40 +450,40 @@ const explainDocument = async (doc: Document) => {
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart data={chartData.hba1c}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis 
-                          dataKey="date" 
+                        <XAxis
+                          dataKey="date"
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                         />
-                        <YAxis 
+                        <YAxis
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                           domain={[4, 'auto']}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#fff', 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
                             fontSize: '12px'
                           }}
                         />
-                        <ReferenceLine 
-                          y={5.6} 
-                          stroke="#10b981" 
+                        <ReferenceLine
+                          y={5.6}
+                          stroke="#10b981"
                           strokeDasharray="3 3"
                           label={{ value: 'Normal: <5.6%', position: 'right', fill: '#10b981', fontSize: 11 }}
                         />
-                        <ReferenceLine 
-                          y={6.5} 
-                          stroke="#f59e0b" 
+                        <ReferenceLine
+                          y={6.5}
+                          stroke="#f59e0b"
                           strokeDasharray="3 3"
                           label={{ value: 'Prediabetes: 5.7-6.4%', position: 'right', fill: '#f59e0b', fontSize: 11 }}
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#3b82f6" 
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#3b82f6"
                           strokeWidth={3}
                           dot={{ fill: '#3b82f6', r: 5 }}
                           activeDot={{ r: 7 }}
@@ -460,40 +500,40 @@ const explainDocument = async (doc: Document) => {
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart data={chartData.glucose}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis 
-                          dataKey="date" 
+                        <XAxis
+                          dataKey="date"
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                         />
-                        <YAxis 
+                        <YAxis
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                           domain={[60, 'auto']}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#fff', 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
                             fontSize: '12px'
                           }}
                         />
-                        <ReferenceLine 
-                          y={100} 
-                          stroke="#10b981" 
+                        <ReferenceLine
+                          y={100}
+                          stroke="#10b981"
                           strokeDasharray="3 3"
                           label={{ value: 'Normal: <100 mg/dL', position: 'right', fill: '#10b981', fontSize: 11 }}
                         />
-                        <ReferenceLine 
-                          y={126} 
-                          stroke="#ef4444" 
+                        <ReferenceLine
+                          y={126}
+                          stroke="#ef4444"
                           strokeDasharray="3 3"
                           label={{ value: 'Diabetes: ≥126 mg/dL', position: 'right', fill: '#ef4444', fontSize: 11 }}
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#8b5cf6" 
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#8b5cf6"
                           strokeWidth={3}
                           dot={{ fill: '#8b5cf6', r: 5 }}
                           activeDot={{ r: 7 }}
@@ -510,40 +550,40 @@ const explainDocument = async (doc: Document) => {
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart data={chartData.blood_pressure}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis 
-                          dataKey="date" 
+                        <XAxis
+                          dataKey="date"
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                         />
-                        <YAxis 
+                        <YAxis
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                           domain={[100, 'auto']}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#fff', 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
                             fontSize: '12px'
                           }}
                         />
-                        <ReferenceLine 
-                          y={120} 
-                          stroke="#10b981" 
+                        <ReferenceLine
+                          y={120}
+                          stroke="#10b981"
                           strokeDasharray="3 3"
                           label={{ value: 'Normal: <120 mmHg', position: 'right', fill: '#10b981', fontSize: 11 }}
                         />
-                        <ReferenceLine 
-                          y={140} 
-                          stroke="#ef4444" 
+                        <ReferenceLine
+                          y={140}
+                          stroke="#ef4444"
                           strokeDasharray="3 3"
                           label={{ value: 'Hypertension: ≥140 mmHg', position: 'right', fill: '#ef4444', fontSize: 11 }}
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#f59e0b" 
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#f59e0b"
                           strokeWidth={3}
                           dot={{ fill: '#f59e0b', r: 5 }}
                           activeDot={{ r: 7 }}
@@ -560,34 +600,34 @@ const explainDocument = async (doc: Document) => {
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart data={chartData.cholesterol}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis 
-                          dataKey="date" 
+                        <XAxis
+                          dataKey="date"
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                         />
-                        <YAxis 
+                        <YAxis
                           style={{ fontSize: '12px' }}
                           stroke="#6b7280"
                           domain={[150, 'auto']}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#fff', 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
                             fontSize: '12px'
                           }}
                         />
-                        <ReferenceLine 
-                          y={200} 
-                          stroke="#10b981" 
+                        <ReferenceLine
+                          y={200}
+                          stroke="#10b981"
                           strokeDasharray="3 3"
                           label={{ value: 'Desirable: <200 mg/dL', position: 'right', fill: '#10b981', fontSize: 11 }}
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#ec4899" 
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#ec4899"
                           strokeWidth={3}
                           dot={{ fill: '#ec4899', r: 5 }}
                           activeDot={{ r: 7 }}
@@ -606,7 +646,7 @@ const explainDocument = async (doc: Document) => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Medical Document History</h2>
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={fetchDocuments}
                 className="text-sm text-blue-600 font-semibold hover:text-blue-700 flex items-center gap-2"
               >
@@ -688,6 +728,13 @@ const explainDocument = async (doc: Document) => {
                             {analyzingDoc === doc.id ? 'Analyzing...' : 'Analyze'}
                           </button>
                           <button
+                            onClick={() => fetchHealthScore(doc)}
+                            className="px-3 py-1 text-sm text-green-600 font-semibold hover:bg-green-50 rounded transition-colors"
+                            title="View health score"
+                          >
+                            🎯 Score
+                          </button>
+                          <button
                             onClick={() => deleteDocument(doc.id)}
                             disabled={deletingDoc === doc.id}
                             className="p-2 hover:bg-red-50 rounded text-red-600 transition-colors disabled:opacity-50"
@@ -710,8 +757,209 @@ const explainDocument = async (doc: Document) => {
         </div>
       </main>
 
+      {/* Health Score Modal - ADD THIS HERE */}
+      {showHealthScore && selectedDoc && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 relative">
+              <button
+                onClick={() => {
+                  setShowHealthScore(false);
+                  setHealthScore(null);
+                  setSelectedDoc(null);
+                  setLoadingHealthScore(false);
+                }}
+                className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-white mb-2">Your Health Score</h2>
+                <p className="text-purple-100 text-sm">{selectedDoc?.filename || 'Health Report'}</p>
+              </div>
+
+              {/* Big Score Display */}
+              <div className="mt-6 flex items-center justify-center gap-8">
+                <div className="text-center">
+                  {loadingHealthScore || !healthScore ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <Loader2 className="w-12 h-12 text-white animate-spin" />
+                      <div className="text-white font-semibold">Loading health score...</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-7xl font-bold text-white mb-2">
+                        {healthScore.overallScore}
+                        <span className="text-3xl text-purple-200">/100</span>
+                      </div>
+                      <div className={`inline-block px-6 py-2 rounded-full text-2xl font-bold ${
+                        healthScore.grade === 'A' ? 'bg-green-500' :
+                        healthScore.grade === 'B' ? 'bg-blue-500' :
+                        healthScore.grade === 'C' ? 'bg-yellow-500' :
+                        healthScore.grade === 'D' ? 'bg-orange-500' :
+                        'bg-red-500'
+                      } text-white`}>
+                        Grade {healthScore.grade}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {loadingHealthScore || !healthScore ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+                  <p className="text-gray-600">Fetching health score... This may take a moment.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Risk Assessment */}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">🚨 Health Risk Assessment</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      {Object.entries(healthScore.risks).map(([key, risk]: [string, any]) => (
+                        <div key={key} className={`border-2 rounded-lg p-4 ${
+                          risk.color === 'red' ? 'border-red-300 bg-red-50' :
+                          risk.color === 'orange' ? 'border-orange-300 bg-orange-50' :
+                          risk.color === 'yellow' ? 'border-yellow-300 bg-yellow-50' :
+                          'border-green-300 bg-green-50'
+                        }`}>
+                          <div className="text-xs font-semibold text-gray-600 mb-1 uppercase">{key}</div>
+                          <div className="text-2xl font-bold mb-2">{risk.score}%</div>
+                          <div className={`text-sm font-bold ${
+                            risk.color === 'red' ? 'text-red-700' :
+                            risk.color === 'orange' ? 'text-orange-700' :
+                            risk.color === 'yellow' ? 'text-yellow-700' :
+                            'text-green-700'
+                          }`}>
+                            {risk.level}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action Items */}
+                  {healthScore.actionItems && healthScore.actionItems.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">🎯 Your Action Plan</h3>
+                      <div className="space-y-4">
+                        {healthScore.actionItems.map((item: any, i: number) => (
+                          <div key={i} className={`border-2 rounded-lg p-4 ${
+                            item.priority === 'HIGH' ? 'border-red-300 bg-red-50' :
+                            item.priority === 'MEDIUM' ? 'border-yellow-300 bg-yellow-50' :
+                            'border-blue-300 bg-blue-50'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className="text-3xl">{item.icon}</div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-bold text-gray-900">{item.title}</h4>
+                                  <span className={`text-xs px-2 py-1 rounded font-bold ${
+                                    item.priority === 'HIGH' ? 'bg-red-200 text-red-800' :
+                                    item.priority === 'MEDIUM' ? 'bg-yellow-200 text-yellow-800' :
+                                    'bg-blue-200 text-blue-800'
+                                  }`}>
+                                    {item.priority}
+                                  </span>
+                                  <span className="text-xs text-gray-500">⏱️ {item.timeline}</span>
+                                </div>
+                                <p className="text-sm text-gray-700 mb-3">{item.description}</p>
+                                <div className="space-y-1">
+                                  {item.steps.map((step: string, j: number) => (
+                                    <div key={j} className="flex items-start gap-2 text-sm text-gray-600">
+                                      <span className="text-green-600 font-bold">{j + 1}.</span>
+                                      <span>{step}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Predictions */}
+                  {healthScore.predictions && Object.keys(healthScore.predictions).length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">🔮 Health Predictions</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        {Object.values(healthScore.predictions).map((pred: any, i: number) => (
+                          <div key={i} className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-4">
+                            <div className="text-sm font-semibold text-gray-600 mb-2">
+                              {pred.metric || 'Overall Health'}
+                            </div>
+                            <div className="text-lg font-bold text-gray-900 mb-1">
+                              {pred.estimatedTime || pred.estimated_time}
+                            </div>
+                            <p className="text-sm text-gray-700">{pred.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Score Components Breakdown */}
+                  {healthScore.components && (
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">📊 Score Breakdown</h3>
+                      <div className="space-y-3">
+                        {Object.entries(healthScore.components).map(([key, comp]: [string, any]) => (
+                          <div key={key} className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-gray-900 uppercase">{key.replace('_', ' ')}</span>
+                              <span className="text-sm text-gray-600">{comp.weight}% weight</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
+                                <div 
+                                  className={`h-full ${
+                                    comp.score >= 80 ? 'bg-green-500' :
+                                    comp.score >= 60 ? 'bg-yellow-500' :
+                                    comp.score >= 40 ? 'bg-orange-500' :
+                                    'bg-red-500'
+                                  }`}
+                                  style={{ width: `${comp.score}%` }}
+                                />
+                              </div>
+                              <span className="font-bold text-gray-900 w-12">{comp.score}/100</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 p-4">
+              <button
+                onClick={() => {
+                  setShowHealthScore(false);
+                  setHealthScore(null);
+                  setSelectedDoc(null);
+                }}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Close Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Document Modal */}
-      {selectedDoc && (
+      {selectedDoc && !showHealthScore && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
@@ -726,7 +974,7 @@ const explainDocument = async (doc: Document) => {
               >
                 <X className="w-5 h-5" />
               </button>
-              
+
               <div className="flex items-start gap-4">
                 <FileText className="w-12 h-12 text-white opacity-50 flex-shrink-0" />
                 <div className="flex-1">
@@ -744,22 +992,20 @@ const explainDocument = async (doc: Document) => {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => setViewMode('analysis')}
-                  className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${
-                    viewMode === 'analysis'
-                      ? 'bg-white text-blue-600'
-                      : 'bg-blue-400 text-white hover:bg-blue-600'
-                  }`}
+                  className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${viewMode === 'analysis'
+                    ? 'bg-white text-blue-600'
+                    : 'bg-blue-400 text-white hover:bg-blue-600'
+                    }`}
                 >
                   <Activity className="w-4 h-4 inline mr-2" />
                   AI Analysis
                 </button>
                 <button
                   onClick={() => setViewMode('raw')}
-                  className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${
-                    viewMode === 'raw'
-                      ? 'bg-white text-blue-600'
-                      : 'bg-blue-400 text-white hover:bg-blue-600'
-                  }`}
+                  className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${viewMode === 'raw'
+                    ? 'bg-white text-blue-600'
+                    : 'bg-blue-400 text-white hover:bg-blue-600'
+                    }`}
                 >
                   <FileText className="w-4 h-4 inline mr-2" />
                   Raw Text
@@ -821,7 +1067,7 @@ const explainDocument = async (doc: Document) => {
                       const improvingMetrics = Object.entries(trends.changes).filter(
                         ([_, change]: any) => change.isImproving
                       );
-                      
+
                       if (improvingMetrics.length > 0) {
                         return (
                           <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 shadow-sm">
@@ -836,7 +1082,7 @@ const explainDocument = async (doc: Document) => {
                                 <div className="space-y-1">
                                   {improvingMetrics.map(([metric, change]: any) => (
                                     <p key={metric} className="text-sm text-green-800 font-medium">
-                                      • {metric.toUpperCase()}: {change.current} 
+                                      • {metric.toUpperCase()}: {change.current}
                                       <span className="text-green-600 font-bold"> ↓ {Math.abs(change.change)}</span>
                                       {metric === 'hba1c' ? '%' : metric === 'glucose' ? ' mg/dL' : ''} from {change.previous}
                                     </p>
@@ -887,16 +1133,14 @@ const explainDocument = async (doc: Document) => {
                             {getMetricValue(selectedDoc, 'hba1c')}
                           </div>
                           {severity?.severity?.hba1c && (
-                            <div className={`inline-block px-2 py-1 rounded text-xs font-bold border ${
-                              getSeverityColor(severity.severity.hba1c.color)
-                            }`}>
+                            <div className={`inline-block px-2 py-1 rounded text-xs font-bold border ${getSeverityColor(severity.severity.hba1c.color)
+                              }`}>
                               {severity.severity.hba1c.label}
                             </div>
                           )}
                           {trends?.changes?.hba1c && (
-                            <div className={`text-xs mt-2 flex items-center gap-1 ${
-                              trends.changes.hba1c.isImproving ? 'text-green-600' : 'text-red-600'
-                            }`}>
+                            <div className={`text-xs mt-2 flex items-center gap-1 ${trends.changes.hba1c.isImproving ? 'text-green-600' : 'text-red-600'
+                              }`}>
                               <span className="text-base font-bold">{trends.changes.hba1c.arrow}</span>
                               <span className="font-semibold">
                                 {Math.abs(trends.changes.hba1c.change)}% from {trends.changes.hba1c.previous}
@@ -915,16 +1159,14 @@ const explainDocument = async (doc: Document) => {
                             {getMetricValue(selectedDoc, 'glucose')}
                           </div>
                           {severity?.severity?.glucose && (
-                            <div className={`inline-block px-2 py-1 rounded text-xs font-bold border ${
-                              getSeverityColor(severity.severity.glucose.color)
-                            }`}>
+                            <div className={`inline-block px-2 py-1 rounded text-xs font-bold border ${getSeverityColor(severity.severity.glucose.color)
+                              }`}>
                               {severity.severity.glucose.label}
                             </div>
                           )}
                           {trends?.changes?.glucose && (
-                            <div className={`text-xs mt-2 flex items-center gap-1 ${
-                              trends.changes.glucose.isImproving ? 'text-green-600' : 'text-red-600'
-                            }`}>
+                            <div className={`text-xs mt-2 flex items-center gap-1 ${trends.changes.glucose.isImproving ? 'text-green-600' : 'text-red-600'
+                              }`}>
                               <span className="text-base font-bold">{trends.changes.glucose.arrow}</span>
                               <span className="font-semibold">
                                 {Math.abs(trends.changes.glucose.change)} mg/dL from {trends.changes.glucose.previous}
@@ -936,7 +1178,7 @@ const explainDocument = async (doc: Document) => {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Trend Summary Banner */}
                       {trends?.hasPreviousReport && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
