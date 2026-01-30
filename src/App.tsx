@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Activity, User, Bell, X, Loader2, AlertCircle, Trash2, Eye, RefreshCw, TrendingUp } from 'lucide-react';
+import { Upload, FileText, Activity, User, Bell, X, Loader2, AlertCircle, Trash2, Eye, RefreshCw, TrendingUp, Menu } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 
@@ -62,6 +62,7 @@ function App() {
   const [healthScore, setHealthScore] = useState<any>(null);
   const [loadingHealthScore, setLoadingHealthScore] = useState(false);
   const [showHealthScore, setShowHealthScore] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -160,12 +161,6 @@ function App() {
     setErrorMessage(null);
   };
 
-  // In your explainDocument function in App.tsx, replace the error handling section:
-
-  // In your explainDocument function in App.tsx, replace the error handling section:
-
-  // In your explainDocument function in App.tsx, replace the error handling section:
-
   const explainDocument = async (doc: Document) => {
     setAnalyzingDoc(doc.id);
     setSelectedDoc(doc);
@@ -176,15 +171,12 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/explain-document/${doc.id}`);
 
-      // Check if response is OK (status 200-299)
       if (!res.ok) {
-        // Try to get error details from response
         let errorDetail = 'Failed to analyze document';
         try {
           const errorData = await res.json();
           errorDetail = errorData.detail || errorData.message || errorDetail;
         } catch {
-          // If JSON parsing fails, use status text
           errorDetail = `Server error: ${res.status} ${res.statusText}`;
         }
 
@@ -214,34 +206,20 @@ function App() {
         ? JSON.parse(data.aiAnalysis)
         : data.aiAnalysis;
 
-      // Debug: Check what we received
-      console.log('=== AI ANALYSIS DEBUG ===');
-      console.log('Full response:', data);
-      console.log('Doctor Questions:', aiAnalysis.doctorQuestions);
-      console.log('Questions length:', aiAnalysis.doctorQuestions?.length);
-      console.log('Key Findings:', aiAnalysis.keyFindings);
-      console.log('Trends:', data.trends);
-      console.log('========================');
-
-      // Normalize keyFindings - handle both string arrays and object arrays
       let normalizedFindings: string[] = [];
       if (Array.isArray(aiAnalysis.keyFindings)) {
         normalizedFindings = aiAnalysis.keyFindings.map((finding: any) => {
-          // If it's an object with a 'finding' property, extract it
           if (typeof finding === 'object' && finding !== null) {
             return finding.finding || finding.text || finding.value || JSON.stringify(finding);
           }
-          // If it's already a string, use it
           return String(finding);
         });
       }
 
-      // Set trends data
       if (data.trends) {
         setTrends(data.trends);
       }
 
-      // Set severity data
       if (data.severity) {
         setSeverity(data.severity);
       }
@@ -268,10 +246,8 @@ const fetchHealthScore = async (doc: Document) => {
   setHealthScore(null);
   setShowHealthScore(true);
   
-  // Don't set selectedDoc here - we'll use it separately
   setSelectedDoc(doc);
   
-  // Close any existing analysis view
   setViewMode('analysis');
   setAnalysis(null);
   setErrorMessage(null);
@@ -327,17 +303,18 @@ const fetchHealthScore = async (doc: Document) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-4">
+      {/* Header - Responsive */}
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-full flex items-center justify-center">
+              <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-gray-900">MediTwin Lite</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">MediTwin Lite</h1>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center gap-4">
             <button
               onClick={fetchDocuments}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -356,31 +333,66 @@ const fetchHealthScore = async (doc: Document) => {
               </div>
             </div>
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+          >
+            <Menu className="w-6 h-6 text-gray-600" />
+          </button>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-400 rounded-full flex items-center justify-center">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-sm text-gray-900">Alex Rivera</div>
+                <div className="text-xs text-gray-500">Patient ID: #8621</div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  fetchDocuments();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex-1 p-2 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700"
+              >
+                <RefreshCw className="w-4 h-4 inline mr-2" />
+                Refresh
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Tab Navigation */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="border-b border-gray-200">
-            <button className="px-1 pb-3 text-blue-600 font-semibold border-b-2 border-blue-600">
+            <button className="px-1 pb-3 text-blue-600 font-semibold border-b-2 border-blue-600 text-sm sm:text-base">
               OVERVIEW
             </button>
           </div>
         </div>
 
-        {/* Upload Card - Single, Prominent */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl border-2 border-blue-400 p-8 shadow-lg">
-            <div className="flex items-start gap-6">
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
-                <Upload className="w-8 h-8 text-blue-600" />
+        {/* Upload Card - Responsive */}
+        <div className="mb-6 sm:mb-8">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl border-2 border-blue-400 p-4 sm:p-6 lg:p-8 shadow-lg">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
 
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold text-white mb-2">Upload Medical Document</h3>
-                <p className="text-blue-100 mb-4">
+              <div className="flex-1 w-full">
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Upload Medical Document</h3>
+                <p className="text-blue-100 mb-4 text-sm sm:text-base">
                   Lab reports, prescriptions, discharge summaries, diabetes screenings - we'll automatically detect the type
                 </p>
 
@@ -395,25 +407,25 @@ const fetchHealthScore = async (doc: Document) => {
                     disabled={uploading}
                     className="hidden"
                   />
-                  <div className="bg-white hover:bg-blue-50 transition-colors rounded-lg p-6 border-2 border-dashed border-blue-300 hover:border-blue-500">
+                  <div className="bg-white hover:bg-blue-50 transition-colors rounded-lg p-4 sm:p-6 border-2 border-dashed border-blue-300 hover:border-blue-500">
                     {uploading ? (
                       <div className="flex items-center justify-center gap-3">
-                        <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-                        <span className="text-blue-600 font-semibold">Uploading and analyzing...</span>
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 animate-spin" />
+                        <span className="text-blue-600 font-semibold text-sm sm:text-base">Uploading and analyzing...</span>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center gap-3">
-                        <FileText className="w-6 h-6 text-blue-600" />
-                        <div>
-                          <div className="text-blue-600 font-semibold">Click to upload PDF</div>
-                          <div className="text-sm text-gray-500">Maximum file size: 10MB</div>
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                        <div className="text-center sm:text-left">
+                          <div className="text-blue-600 font-semibold text-sm sm:text-base">Click to upload PDF</div>
+                          <div className="text-xs sm:text-sm text-gray-500">Maximum file size: 10MB</div>
                         </div>
                       </div>
                     )}
                   </div>
                 </label>
 
-                <div className="mt-4 flex items-start gap-2 text-blue-100 text-sm">
+                <div className="mt-4 flex items-start gap-2 text-blue-100 text-xs sm:text-sm">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <div>
                     <strong className="text-white">Note:</strong> Only medical documents accepted.
@@ -425,13 +437,13 @@ const fetchHealthScore = async (doc: Document) => {
           </div>
         </div>
 
-        {/* Health Trends Charts */}
+        {/* Health Trends Charts - Responsive */}
         {chartData && (chartData.hba1c.length > 1 || chartData.glucose.length > 1) && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-blue-500" />
-                <h2 className="text-xl font-bold text-gray-900">Health Trends Over Time</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Health Trends Over Time</h2>
               </div>
               <button
                 onClick={() => setShowCharts(!showCharts)}
@@ -442,21 +454,22 @@ const fetchHealthScore = async (doc: Document) => {
             </div>
 
             {showCharts && (
-              <div className="space-y-8">
+              <div className="space-y-6 sm:space-y-8">
                 {/* HbA1c Chart */}
                 {chartData.hba1c.length > 1 && (
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">HbA1c Trend</h3>
-                    <ResponsiveContainer width="100%" height={250}>
+                    <ResponsiveContainer width="100%" height={200} className="sm:h-[250px]">
                       <LineChart data={chartData.hba1c}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis
                           dataKey="date"
-                          style={{ fontSize: '12px' }}
+                          style={{ fontSize: '10px' }}
                           stroke="#6b7280"
+                          interval="preserveStartEnd"
                         />
                         <YAxis
-                          style={{ fontSize: '12px' }}
+                          style={{ fontSize: '10px' }}
                           stroke="#6b7280"
                           domain={[4, 'auto']}
                         />
@@ -465,28 +478,22 @@ const fetchHealthScore = async (doc: Document) => {
                             backgroundColor: '#fff',
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
-                            fontSize: '12px'
+                            fontSize: '11px'
                           }}
                         />
                         <ReferenceLine
                           y={5.6}
                           stroke="#10b981"
                           strokeDasharray="3 3"
-                          label={{ value: 'Normal: <5.6%', position: 'right', fill: '#10b981', fontSize: 11 }}
-                        />
-                        <ReferenceLine
-                          y={6.5}
-                          stroke="#f59e0b"
-                          strokeDasharray="3 3"
-                          label={{ value: 'Prediabetes: 5.7-6.4%', position: 'right', fill: '#f59e0b', fontSize: 11 }}
+                          label={{ value: 'Normal', position: 'right', fill: '#10b981', fontSize: 9 }}
                         />
                         <Line
                           type="monotone"
                           dataKey="value"
                           stroke="#3b82f6"
-                          strokeWidth={3}
-                          dot={{ fill: '#3b82f6', r: 5 }}
-                          activeDot={{ r: 7 }}
+                          strokeWidth={2}
+                          dot={{ fill: '#3b82f6', r: 3 }}
+                          activeDot={{ r: 5 }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -497,16 +504,17 @@ const fetchHealthScore = async (doc: Document) => {
                 {chartData.glucose.length > 1 && (
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">Fasting Glucose Trend</h3>
-                    <ResponsiveContainer width="100%" height={250}>
+                    <ResponsiveContainer width="100%" height={200} className="sm:h-[250px]">
                       <LineChart data={chartData.glucose}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis
                           dataKey="date"
-                          style={{ fontSize: '12px' }}
+                          style={{ fontSize: '10px' }}
                           stroke="#6b7280"
+                          interval="preserveStartEnd"
                         />
                         <YAxis
-                          style={{ fontSize: '12px' }}
+                          style={{ fontSize: '10px' }}
                           stroke="#6b7280"
                           domain={[60, 'auto']}
                         />
@@ -515,122 +523,22 @@ const fetchHealthScore = async (doc: Document) => {
                             backgroundColor: '#fff',
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
-                            fontSize: '12px'
+                            fontSize: '11px'
                           }}
                         />
                         <ReferenceLine
                           y={100}
                           stroke="#10b981"
                           strokeDasharray="3 3"
-                          label={{ value: 'Normal: <100 mg/dL', position: 'right', fill: '#10b981', fontSize: 11 }}
-                        />
-                        <ReferenceLine
-                          y={126}
-                          stroke="#ef4444"
-                          strokeDasharray="3 3"
-                          label={{ value: 'Diabetes: ≥126 mg/dL', position: 'right', fill: '#ef4444', fontSize: 11 }}
+                          label={{ value: 'Normal', position: 'right', fill: '#10b981', fontSize: 9 }}
                         />
                         <Line
                           type="monotone"
                           dataKey="value"
                           stroke="#8b5cf6"
-                          strokeWidth={3}
-                          dot={{ fill: '#8b5cf6', r: 5 }}
-                          activeDot={{ r: 7 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Blood Pressure Chart */}
-                {chartData.blood_pressure.length > 1 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Blood Pressure Trend (Systolic)</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <LineChart data={chartData.blood_pressure}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis
-                          dataKey="date"
-                          style={{ fontSize: '12px' }}
-                          stroke="#6b7280"
-                        />
-                        <YAxis
-                          style={{ fontSize: '12px' }}
-                          stroke="#6b7280"
-                          domain={[100, 'auto']}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#fff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            fontSize: '12px'
-                          }}
-                        />
-                        <ReferenceLine
-                          y={120}
-                          stroke="#10b981"
-                          strokeDasharray="3 3"
-                          label={{ value: 'Normal: <120 mmHg', position: 'right', fill: '#10b981', fontSize: 11 }}
-                        />
-                        <ReferenceLine
-                          y={140}
-                          stroke="#ef4444"
-                          strokeDasharray="3 3"
-                          label={{ value: 'Hypertension: ≥140 mmHg', position: 'right', fill: '#ef4444', fontSize: 11 }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke="#f59e0b"
-                          strokeWidth={3}
-                          dot={{ fill: '#f59e0b', r: 5 }}
-                          activeDot={{ r: 7 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Cholesterol Chart */}
-                {chartData.cholesterol.length > 1 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Total Cholesterol Trend</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <LineChart data={chartData.cholesterol}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis
-                          dataKey="date"
-                          style={{ fontSize: '12px' }}
-                          stroke="#6b7280"
-                        />
-                        <YAxis
-                          style={{ fontSize: '12px' }}
-                          stroke="#6b7280"
-                          domain={[150, 'auto']}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#fff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            fontSize: '12px'
-                          }}
-                        />
-                        <ReferenceLine
-                          y={200}
-                          stroke="#10b981"
-                          strokeDasharray="3 3"
-                          label={{ value: 'Desirable: <200 mg/dL', position: 'right', fill: '#10b981', fontSize: 11 }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke="#ec4899"
-                          strokeWidth={3}
-                          dot={{ fill: '#ec4899', r: 5 }}
-                          activeDot={{ r: 7 }}
+                          strokeWidth={2}
+                          dot={{ fill: '#8b5cf6', r: 3 }}
+                          activeDot={{ r: 5 }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -641,19 +549,17 @@ const fetchHealthScore = async (doc: Document) => {
           </div>
         )}
 
-        {/* Document History */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Medical Document History</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={fetchDocuments}
-                className="text-sm text-blue-600 font-semibold hover:text-blue-700 flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </button>
-            </div>
+        {/* Document History - Responsive */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Medical Document History</h2>
+            <button
+              onClick={fetchDocuments}
+              className="text-sm text-blue-600 font-semibold hover:text-blue-700 flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
           </div>
 
           {loading ? (
@@ -663,106 +569,172 @@ const fetchHealthScore = async (doc: Document) => {
           ) : documents.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">No documents uploaded yet</p>
-              <p className="text-sm text-gray-400">Upload your first medical document above to get started</p>
+              <p className="text-gray-500 mb-2 text-sm sm:text-base">No documents uploaded yet</p>
+              <p className="text-xs sm:text-sm text-gray-400">Upload your first medical document above to get started</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Document</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Type</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Metrics</th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documents.map((doc) => (
-                    <tr key={doc.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                          <span className="text-sm text-gray-900 truncate max-w-xs">{doc.filename}</span>
+            <>
+              {/* Mobile Card View */}
+              <div className="block lg:hidden space-y-4">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                    <div className="flex items-start gap-3 mb-3">
+                      <FileText className="w-5 h-5 text-blue-500 flex-shrink-0 mt-1" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm text-gray-900 truncate mb-1">{doc.filename}</div>
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                          <span className="px-2 py-0.5 bg-gray-100 rounded">{getDocumentTypeLabel(doc.documentType)}</span>
+                          <span>{formatDate(doc.uploadDate)}</span>
                         </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
-                          {getDocumentTypeLabel(doc.documentType)}
+                      </div>
+                    </div>
+
+                    {doc.isDiabetesReport && (
+                      <div className="flex gap-4 text-xs mb-3 pl-8">
+                        <span className="text-gray-600">
+                          HbA1c: <span className="font-semibold">{getMetricValue(doc, 'hba1c')}</span>
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-600">
-                        {formatDate(doc.uploadDate)}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex gap-2 text-xs">
-                          {doc.isDiabetesReport && (
-                            <>
-                              <span className="text-gray-600">
-                                HbA1c: <span className="font-semibold">{getMetricValue(doc, 'hba1c')}</span>
-                              </span>
-                              <span className="text-gray-400">|</span>
-                              <span className="text-gray-600">
-                                Glucose: <span className="font-semibold">{getMetricValue(doc, 'glucose')}</span>
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => viewDocument(doc)}
-                            className="p-2 hover:bg-blue-50 rounded text-blue-600 transition-colors"
-                            title="View document content"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => explainDocument(doc)}
-                            disabled={analyzingDoc === doc.id}
-                            className="px-3 py-1 text-sm text-blue-600 font-semibold hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
-                            title="Get AI analysis"
-                          >
-                            {analyzingDoc === doc.id ? 'Analyzing...' : 'Analyze'}
-                          </button>
-                          <button
-                            onClick={() => fetchHealthScore(doc)}
-                            className="px-3 py-1 text-sm text-green-600 font-semibold hover:bg-green-50 rounded transition-colors"
-                            title="View health score"
-                          >
-                            🎯 Score
-                          </button>
-                          <button
-                            onClick={() => deleteDocument(doc.id)}
-                            disabled={deletingDoc === doc.id}
-                            className="p-2 hover:bg-red-50 rounded text-red-600 transition-colors disabled:opacity-50"
-                            title="Delete document"
-                          >
-                            {deletingDoc === doc.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
+                        <span className="text-gray-600">
+                          Glucose: <span className="font-semibold">{getMetricValue(doc, 'glucose')}</span>
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2 pl-8">
+                      <button
+                        onClick={() => viewDocument(doc)}
+                        className="flex-1 min-w-[80px] px-3 py-1.5 text-xs text-blue-600 font-semibold hover:bg-blue-50 rounded transition-colors"
+                      >
+                        <Eye className="w-3 h-3 inline mr-1" />
+                        View
+                      </button>
+                      <button
+                        onClick={() => explainDocument(doc)}
+                        disabled={analyzingDoc === doc.id}
+                        className="flex-1 min-w-[80px] px-3 py-1.5 text-xs text-blue-600 font-semibold hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                      >
+                        {analyzingDoc === doc.id ? 'Analyzing...' : 'Analyze'}
+                      </button>
+                      <button
+                        onClick={() => fetchHealthScore(doc)}
+                        className="flex-1 min-w-[80px] px-3 py-1.5 text-xs text-green-600 font-semibold hover:bg-green-50 rounded transition-colors"
+                      >
+                        🎯 Score
+                      </button>
+                      <button
+                        onClick={() => deleteDocument(doc.id)}
+                        disabled={deletingDoc === doc.id}
+                        className="p-1.5 hover:bg-red-50 rounded text-red-600 transition-colors disabled:opacity-50"
+                      >
+                        {deletingDoc === doc.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Document</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Type</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Date</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Metrics</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {documents.map((doc) => (
+                      <tr key={doc.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                            <span className="text-sm text-gray-900 truncate max-w-xs">{doc.filename}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
+                            {getDocumentTypeLabel(doc.documentType)}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-sm text-gray-600">
+                          {formatDate(doc.uploadDate)}
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex gap-2 text-xs">
+                            {doc.isDiabetesReport && (
+                              <>
+                                <span className="text-gray-600">
+                                  HbA1c: <span className="font-semibold">{getMetricValue(doc, 'hba1c')}</span>
+                                </span>
+                                <span className="text-gray-400">|</span>
+                                <span className="text-gray-600">
+                                  Glucose: <span className="font-semibold">{getMetricValue(doc, 'glucose')}</span>
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => viewDocument(doc)}
+                              className="p-2 hover:bg-blue-50 rounded text-blue-600 transition-colors"
+                              title="View document content"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => explainDocument(doc)}
+                              disabled={analyzingDoc === doc.id}
+                              className="px-3 py-1 text-sm text-blue-600 font-semibold hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                              title="Get AI analysis"
+                            >
+                              {analyzingDoc === doc.id ? 'Analyzing...' : 'Analyze'}
+                            </button>
+                            <button
+                              onClick={() => fetchHealthScore(doc)}
+                              className="px-3 py-1 text-sm text-green-600 font-semibold hover:bg-green-50 rounded transition-colors"
+                              title="View health score"
+                            >
+                              🎯 Score
+                            </button>
+                            <button
+                              onClick={() => deleteDocument(doc.id)}
+                              disabled={deletingDoc === doc.id}
+                              className="p-2 hover:bg-red-50 rounded text-red-600 transition-colors disabled:opacity-50"
+                              title="Delete document"
+                            >
+                              {deletingDoc === doc.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </main>
 
-      {/* Health Score Modal - ADD THIS HERE */}
+      {/* Health Score Modal - Responsive */}
       {showHealthScore && selectedDoc && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 relative">
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 sm:p-6 relative">
               <button
                 onClick={() => {
                   setShowHealthScore(false);
@@ -770,68 +742,66 @@ const fetchHealthScore = async (doc: Document) => {
                   setSelectedDoc(null);
                   setLoadingHealthScore(false);
                 }}
-                className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded p-1"
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 text-white hover:bg-white hover:bg-opacity-20 rounded p-1"
               >
                 <X className="w-5 h-5" />
               </button>
 
               <div className="text-center">
-                <h2 className="text-3xl font-bold text-white mb-2">Your Health Score</h2>
-                <p className="text-purple-100 text-sm">{selectedDoc?.filename || 'Health Report'}</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Your Health Score</h2>
+                <p className="text-purple-100 text-xs sm:text-sm truncate px-8">{selectedDoc?.filename || 'Health Report'}</p>
               </div>
 
               {/* Big Score Display */}
-              <div className="mt-6 flex items-center justify-center gap-8">
-                <div className="text-center">
-                  {loadingHealthScore || !healthScore ? (
-                    <div className="flex items-center justify-center gap-3">
-                      <Loader2 className="w-12 h-12 text-white animate-spin" />
-                      <div className="text-white font-semibold">Loading health score...</div>
+              <div className="mt-4 sm:mt-6 flex items-center justify-center">
+                {loadingHealthScore || !healthScore ? (
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-white animate-spin" />
+                    <div className="text-white font-semibold text-sm sm:text-base text-center sm:text-left">Loading health score...</div>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-5xl sm:text-7xl font-bold text-white mb-2">
+                      {healthScore.overallScore}
+                      <span className="text-2xl sm:text-3xl text-purple-200">/100</span>
                     </div>
-                  ) : (
-                    <div>
-                      <div className="text-7xl font-bold text-white mb-2">
-                        {healthScore.overallScore}
-                        <span className="text-3xl text-purple-200">/100</span>
-                      </div>
-                      <div className={`inline-block px-6 py-2 rounded-full text-2xl font-bold ${
-                        healthScore.grade === 'A' ? 'bg-green-500' :
-                        healthScore.grade === 'B' ? 'bg-blue-500' :
-                        healthScore.grade === 'C' ? 'bg-yellow-500' :
-                        healthScore.grade === 'D' ? 'bg-orange-500' :
-                        'bg-red-500'
-                      } text-white`}>
-                        Grade {healthScore.grade}
-                      </div>
+                    <div className={`inline-block px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-xl sm:text-2xl font-bold ${
+                      healthScore.grade === 'A' ? 'bg-green-500' :
+                      healthScore.grade === 'B' ? 'bg-blue-500' :
+                      healthScore.grade === 'C' ? 'bg-yellow-500' :
+                      healthScore.grade === 'D' ? 'bg-orange-500' :
+                      'bg-red-500'
+                    } text-white`}>
+                      Grade {healthScore.grade}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-6">
               {loadingHealthScore || !healthScore ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                  <p className="text-gray-600">Fetching health score... This may take a moment.</p>
+                  <p className="text-gray-600 text-sm sm:text-base">Fetching health score... This may take a moment.</p>
                 </div>
               ) : (
                 <>
-                  {/* Risk Assessment */}
+                  {/* Risk Assessment - Responsive Grid */}
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">🚨 Health Risk Assessment</h3>
-                    <div className="grid grid-cols-3 gap-4">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">🚨 Health Risk Assessment</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                       {Object.entries(healthScore.risks).map(([key, risk]: [string, any]) => (
-                        <div key={key} className={`border-2 rounded-lg p-4 ${
+                        <div key={key} className={`border-2 rounded-lg p-3 sm:p-4 ${
                           risk.color === 'red' ? 'border-red-300 bg-red-50' :
                           risk.color === 'orange' ? 'border-orange-300 bg-orange-50' :
                           risk.color === 'yellow' ? 'border-yellow-300 bg-yellow-50' :
                           'border-green-300 bg-green-50'
                         }`}>
                           <div className="text-xs font-semibold text-gray-600 mb-1 uppercase">{key}</div>
-                          <div className="text-2xl font-bold mb-2">{risk.score}%</div>
-                          <div className={`text-sm font-bold ${
+                          <div className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">{risk.score}%</div>
+                          <div className={`text-xs sm:text-sm font-bold ${
                             risk.color === 'red' ? 'text-red-700' :
                             risk.color === 'orange' ? 'text-orange-700' :
                             risk.color === 'yellow' ? 'text-yellow-700' :
@@ -847,20 +817,20 @@ const fetchHealthScore = async (doc: Document) => {
                   {/* Action Items */}
                   {healthScore.actionItems && healthScore.actionItems.length > 0 && (
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">🎯 Your Action Plan</h3>
-                      <div className="space-y-4">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">🎯 Your Action Plan</h3>
+                      <div className="space-y-3 sm:space-y-4">
                         {healthScore.actionItems.map((item: any, i: number) => (
-                          <div key={i} className={`border-2 rounded-lg p-4 ${
+                          <div key={i} className={`border-2 rounded-lg p-3 sm:p-4 ${
                             item.priority === 'HIGH' ? 'border-red-300 bg-red-50' :
                             item.priority === 'MEDIUM' ? 'border-yellow-300 bg-yellow-50' :
                             'border-blue-300 bg-blue-50'
                           }`}>
-                            <div className="flex items-start gap-3">
-                              <div className="text-3xl">{item.icon}</div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="font-bold text-gray-900">{item.title}</h4>
-                                  <span className={`text-xs px-2 py-1 rounded font-bold ${
+                            <div className="flex items-start gap-2 sm:gap-3">
+                              <div className="text-2xl sm:text-3xl">{item.icon}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  <h4 className="font-bold text-gray-900 text-sm sm:text-base">{item.title}</h4>
+                                  <span className={`text-xs px-2 py-0.5 sm:py-1 rounded font-bold ${
                                     item.priority === 'HIGH' ? 'bg-red-200 text-red-800' :
                                     item.priority === 'MEDIUM' ? 'bg-yellow-200 text-yellow-800' :
                                     'bg-blue-200 text-blue-800'
@@ -869,11 +839,11 @@ const fetchHealthScore = async (doc: Document) => {
                                   </span>
                                   <span className="text-xs text-gray-500">⏱️ {item.timeline}</span>
                                 </div>
-                                <p className="text-sm text-gray-700 mb-3">{item.description}</p>
+                                <p className="text-xs sm:text-sm text-gray-700 mb-2 sm:mb-3">{item.description}</p>
                                 <div className="space-y-1">
                                   {item.steps.map((step: string, j: number) => (
-                                    <div key={j} className="flex items-start gap-2 text-sm text-gray-600">
-                                      <span className="text-green-600 font-bold">{j + 1}.</span>
+                                    <div key={j} className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                                      <span className="text-green-600 font-bold flex-shrink-0">{j + 1}.</span>
                                       <span>{step}</span>
                                     </div>
                                   ))}
@@ -889,17 +859,17 @@ const fetchHealthScore = async (doc: Document) => {
                   {/* Predictions */}
                   {healthScore.predictions && Object.keys(healthScore.predictions).length > 0 && (
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">🔮 Health Predictions</h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">🔮 Health Predictions</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         {Object.values(healthScore.predictions).map((pred: any, i: number) => (
-                          <div key={i} className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-4">
-                            <div className="text-sm font-semibold text-gray-600 mb-2">
+                          <div key={i} className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-3 sm:p-4">
+                            <div className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">
                               {pred.metric || 'Overall Health'}
                             </div>
-                            <div className="text-lg font-bold text-gray-900 mb-1">
+                            <div className="text-base sm:text-lg font-bold text-gray-900 mb-1">
                               {pred.estimatedTime || pred.estimated_time}
                             </div>
-                            <p className="text-sm text-gray-700">{pred.message}</p>
+                            <p className="text-xs sm:text-sm text-gray-700">{pred.message}</p>
                           </div>
                         ))}
                       </div>
@@ -909,16 +879,16 @@ const fetchHealthScore = async (doc: Document) => {
                   {/* Score Components Breakdown */}
                   {healthScore.components && (
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">📊 Score Breakdown</h3>
-                      <div className="space-y-3">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">📊 Score Breakdown</h3>
+                      <div className="space-y-2 sm:space-y-3">
                         {Object.entries(healthScore.components).map(([key, comp]: [string, any]) => (
-                          <div key={key} className="bg-gray-50 rounded-lg p-4">
+                          <div key={key} className="bg-gray-50 rounded-lg p-3 sm:p-4">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-semibold text-gray-900 uppercase">{key.replace('_', ' ')}</span>
-                              <span className="text-sm text-gray-600">{comp.weight}% weight</span>
+                              <span className="font-semibold text-gray-900 uppercase text-xs sm:text-sm">{key.replace('_', ' ')}</span>
+                              <span className="text-xs sm:text-sm text-gray-600">{comp.weight}% weight</span>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                              <div className="flex-1 bg-gray-200 rounded-full h-2 sm:h-3 overflow-hidden">
                                 <div 
                                   className={`h-full ${
                                     comp.score >= 80 ? 'bg-green-500' :
@@ -929,7 +899,7 @@ const fetchHealthScore = async (doc: Document) => {
                                   style={{ width: `${comp.score}%` }}
                                 />
                               </div>
-                              <span className="font-bold text-gray-900 w-12">{comp.score}/100</span>
+                              <span className="font-bold text-gray-900 w-10 sm:w-12 text-sm sm:text-base">{comp.score}/100</span>
                             </div>
                           </div>
                         ))}
@@ -941,14 +911,14 @@ const fetchHealthScore = async (doc: Document) => {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-200 p-4">
+            <div className="border-t border-gray-200 p-3 sm:p-4">
               <button
                 onClick={() => {
                   setShowHealthScore(false);
                   setHealthScore(null);
                   setSelectedDoc(null);
                 }}
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
+                className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-lg hover:opacity-90 transition-opacity text-sm sm:text-base"
               >
                 Close Dashboard
               </button>
@@ -958,33 +928,33 @@ const fetchHealthScore = async (doc: Document) => {
       )}
 
 
-      {/* Document Modal */}
+      {/* Document Modal - Responsive */}
       {selectedDoc && !showHealthScore && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] my-4 overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="bg-blue-500 p-6 relative">
+            <div className="bg-blue-500 p-4 sm:p-6 relative flex-shrink-0">
               <button
                 onClick={() => {
                   setSelectedDoc(null);
                   setAnalysis(null);
                   setErrorMessage(null);
                 }}
-                className="absolute top-4 right-4 text-white hover:bg-blue-600 rounded p-1"
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 text-white hover:bg-blue-600 rounded p-1"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="flex items-start gap-4">
-                <FileText className="w-12 h-12 text-white opacity-50 flex-shrink-0" />
-                <div className="flex-1">
+              <div className="flex items-start gap-3 sm:gap-4 pr-10">
+                <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-white opacity-50 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
                   <div className="text-xs text-blue-100 mb-1">
                     {formatDate(selectedDoc.uploadDate)}
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
                     {viewMode === 'analysis' ? 'AI Analysis' : 'Document Content'}
                   </h2>
-                  <p className="text-blue-100 text-sm truncate">{selectedDoc.filename}</p>
+                  <p className="text-blue-100 text-xs sm:text-sm truncate">{selectedDoc.filename}</p>
                 </div>
               </div>
 
@@ -992,34 +962,34 @@ const fetchHealthScore = async (doc: Document) => {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => setViewMode('analysis')}
-                  className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${viewMode === 'analysis'
+                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-semibold transition-colors ${viewMode === 'analysis'
                     ? 'bg-white text-blue-600'
                     : 'bg-blue-400 text-white hover:bg-blue-600'
                     }`}
                 >
-                  <Activity className="w-4 h-4 inline mr-2" />
+                  <Activity className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
                   AI Analysis
                 </button>
                 <button
                   onClick={() => setViewMode('raw')}
-                  className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${viewMode === 'raw'
+                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-semibold transition-colors ${viewMode === 'raw'
                     ? 'bg-white text-blue-600'
                     : 'bg-blue-400 text-white hover:bg-blue-600'
                     }`}
                 >
-                  <FileText className="w-4 h-4 inline mr-2" />
+                  <FileText className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
                   Raw Text
                 </button>
               </div>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               {viewMode === 'raw' ? (
                 // Raw Text View
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-gray-900">Extracted Text Content</h3>
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900">Extracted Text Content</h3>
                     <button
                       onClick={() => {
                         if (selectedDoc.rawText) {
@@ -1027,25 +997,25 @@ const fetchHealthScore = async (doc: Document) => {
                           alert('✅ Text copied to clipboard!');
                         }
                       }}
-                      className="text-sm text-blue-600 hover:text-blue-700"
+                      className="text-xs sm:text-sm text-blue-600 hover:text-blue-700"
                     >
                       Copy Text
                     </button>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-4 font-mono text-xs text-gray-700 whitespace-pre-wrap max-h-96 overflow-y-auto border border-gray-200">
+                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4 font-mono text-xs text-gray-700 whitespace-pre-wrap max-h-96 overflow-y-auto border border-gray-200">
                     {selectedDoc.rawText || 'No text content available'}
                   </div>
                 </div>
               ) : errorMessage ? (
                 // Error View
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-lg font-semibold text-red-900 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold text-red-900 mb-2">
                         Analysis Not Available
                       </h3>
-                      <p className="text-sm text-red-700 mb-3">{errorMessage}</p>
+                      <p className="text-xs sm:text-sm text-red-700 mb-3">{errorMessage}</p>
                       <p className="text-xs text-red-600">
                         This document may be non-medical (train ticket, invoice, etc.). Please upload medical documents only.
                       </p>
@@ -1055,13 +1025,13 @@ const fetchHealthScore = async (doc: Document) => {
               ) : !analysis ? (
                 // Loading View
                 <div className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                  <p className="text-gray-600">Analyzing document with AI...</p>
+                  <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-blue-500 animate-spin mb-4" />
+                  <p className="text-gray-600 text-sm sm:text-base">Analyzing document with AI...</p>
                 </div>
               ) : (
                 // Analysis View
-                <div className="space-y-6">
-                  {/* Improvement Banner - Show if trends are improving */}
+                <div className="space-y-4 sm:space-y-6">
+                  {/* Improvement Banner */}
                   {trends?.hasPreviousReport && (
                     (() => {
                       const improvingMetrics = Object.entries(trends.changes).filter(
@@ -1070,18 +1040,18 @@ const fetchHealthScore = async (doc: Document) => {
 
                       if (improvingMetrics.length > 0) {
                         return (
-                          <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 shadow-sm">
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Activity className="w-5 h-5 text-white" />
+                          <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3 sm:p-4 shadow-sm">
+                            <div className="flex items-start gap-2 sm:gap-3">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                               </div>
-                              <div className="flex-1">
-                                <h3 className="text-sm font-bold text-green-900 mb-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-xs sm:text-sm font-bold text-green-900 mb-2">
                                   ✅ GREAT PROGRESS! Your health is improving!
                                 </h3>
                                 <div className="space-y-1">
                                   {improvingMetrics.map(([metric, change]: any) => (
-                                    <p key={metric} className="text-sm text-green-800 font-medium">
+                                    <p key={metric} className="text-xs sm:text-sm text-green-800 font-medium">
                                       • {metric.toUpperCase()}: {change.current}
                                       <span className="text-green-600 font-bold"> ↓ {Math.abs(change.change)}</span>
                                       {metric === 'hba1c' ? '%' : metric === 'glucose' ? ' mg/dL' : ''} from {change.previous}
@@ -1100,16 +1070,16 @@ const fetchHealthScore = async (doc: Document) => {
                     })()
                   )}
 
-                  {/* Critical Alerts Banner - Show First if Present */}
+                  {/* Critical Alerts Banner */}
                   {severity?.criticalAlerts && severity.criticalAlerts.length > 0 && (
-                    <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <h3 className="text-sm font-bold text-red-900 mb-2">⚠️ HEALTH ALERTS</h3>
+                    <div className="bg-red-50 border-2 border-red-300 rounded-lg p-3 sm:p-4 shadow-sm">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xs sm:text-sm font-bold text-red-900 mb-2">⚠️ HEALTH ALERTS</h3>
                           <ul className="space-y-1">
                             {severity.criticalAlerts.map((alert: string, i: number) => (
-                              <li key={i} className="text-sm text-red-800 font-medium">
+                              <li key={i} className="text-xs sm:text-sm text-red-800 font-medium">
                                 {alert}
                               </li>
                             ))}
@@ -1122,14 +1092,14 @@ const fetchHealthScore = async (doc: Document) => {
                     </div>
                   )}
 
-                  {/* Metrics with Trends and Severity Badges */}
+                  {/* Metrics with Trends - Responsive Grid */}
                   {selectedDoc.isDiabetesReport && (
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         {/* HbA1c Card */}
-                        <div className="border-2 border-gray-200 rounded-lg p-4">
+                        <div className="border-2 border-gray-200 rounded-lg p-3 sm:p-4">
                           <div className="text-xs font-semibold text-gray-600 mb-1">HBA1C</div>
-                          <div className="text-2xl font-bold text-gray-900 mb-2">
+                          <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                             {getMetricValue(selectedDoc, 'hba1c')}
                           </div>
                           {severity?.severity?.hba1c && (
@@ -1153,9 +1123,9 @@ const fetchHealthScore = async (doc: Document) => {
                         </div>
 
                         {/* Glucose Card */}
-                        <div className="border-2 border-gray-200 rounded-lg p-4">
+                        <div className="border-2 border-gray-200 rounded-lg p-3 sm:p-4">
                           <div className="text-xs font-semibold text-gray-600 mb-1">GLUCOSE</div>
-                          <div className="text-2xl font-bold text-gray-900 mb-2">
+                          <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                             {getMetricValue(selectedDoc, 'glucose')}
                           </div>
                           {severity?.severity?.glucose && (
@@ -1181,9 +1151,9 @@ const fetchHealthScore = async (doc: Document) => {
 
                       {/* Trend Summary Banner */}
                       {trends?.hasPreviousReport && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3">
                           <div className="flex items-start gap-2">
-                            <Activity className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                             <div className="text-xs text-blue-800">
                               <span className="font-semibold">Compared with previous report </span>
                               {trends.previousDate && (
@@ -1200,33 +1170,33 @@ const fetchHealthScore = async (doc: Document) => {
 
                   {/* AI Summary */}
                   <div>
-                    <h3 className="text-sm font-semibold text-blue-600 mb-2">AI SUMMARY</h3>
-                    <p className="text-sm text-gray-700 bg-blue-50 p-4 rounded-lg leading-relaxed">
+                    <h3 className="text-xs sm:text-sm font-semibold text-blue-600 mb-2">AI SUMMARY</h3>
+                    <p className="text-xs sm:text-sm text-gray-700 bg-blue-50 p-3 sm:p-4 rounded-lg leading-relaxed">
                       {analysis.summary}
                     </p>
                   </div>
 
-                  {/* Doctor Questions - PROMINENT SECTION */}
+                  {/* Doctor Questions */}
                   {analysis.doctorQuestions && analysis.doctorQuestions.length > 0 && (
-                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-5 border-2 border-blue-200">
-                      <div className="flex items-start gap-3 mb-4">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <User className="w-6 h-6 text-white" />
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 sm:p-5 border-2 border-blue-200">
+                      <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-gray-900">Smart Questions for Your Doctor</h3>
+                          <h3 className="text-sm sm:text-base font-bold text-gray-900">Smart Questions for Your Doctor</h3>
                           <p className="text-xs text-gray-600 mt-1">
                             Ask these specific questions based on your results
                           </p>
                         </div>
                       </div>
-                      <ol className="space-y-3">
+                      <ol className="space-y-2 sm:space-y-3">
                         {analysis.doctorQuestions.map((question, i) => (
-                          <li key={i} className="flex items-start gap-3 bg-white p-3 rounded-lg shadow-sm">
-                            <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          <li key={i} className="flex items-start gap-2 sm:gap-3 bg-white p-2 sm:p-3 rounded-lg shadow-sm">
+                            <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">
                               {i + 1}
                             </span>
-                            <span className="text-sm text-gray-800 font-medium leading-relaxed pt-0.5">
+                            <span className="text-xs sm:text-sm text-gray-800 font-medium leading-relaxed pt-0.5">
                               {question}
                             </span>
                           </li>
@@ -1238,10 +1208,10 @@ const fetchHealthScore = async (doc: Document) => {
                   {/* Key Findings */}
                   {analysis.keyFindings && analysis.keyFindings.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-3">KEY FINDINGS</h3>
+                      <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-3">KEY FINDINGS</h3>
                       <ul className="space-y-2">
                         {analysis.keyFindings.map((finding, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                          <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-gray-700 bg-gray-50 p-2 sm:p-3 rounded">
                             <span className="text-blue-500 mt-1">•</span>
                             <span>{finding}</span>
                           </li>
@@ -1254,12 +1224,12 @@ const fetchHealthScore = async (doc: Document) => {
                   {analysis.recommendations && analysis.recommendations.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
-                        <Activity className="w-5 h-5 text-green-600" />
-                        <h3 className="text-sm font-semibold text-gray-900">ACTION STEPS</h3>
+                        <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                        <h3 className="text-xs sm:text-sm font-semibold text-gray-900">ACTION STEPS</h3>
                       </div>
                       <ol className="space-y-2">
                         {analysis.recommendations.map((rec, i) => (
-                          <li key={i} className="flex items-start gap-3 text-sm text-gray-700">
+                          <li key={i} className="flex items-start gap-2 sm:gap-3 text-xs sm:text-sm text-gray-700">
                             <span className="text-green-600 font-semibold">{i + 1}.</span>
                             <span>{rec}</span>
                           </li>
@@ -1272,14 +1242,14 @@ const fetchHealthScore = async (doc: Document) => {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 p-4 flex gap-2">
+            <div className="border-t border-gray-200 p-3 sm:p-4 flex gap-2 flex-shrink-0">
               <button
                 onClick={() => {
                   setSelectedDoc(null);
                   setAnalysis(null);
                   setErrorMessage(null);
                 }}
-                className="flex-1 py-2 bg-gray-100 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex-1 py-2 bg-gray-100 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition-colors text-sm sm:text-base"
               >
                 Close
               </button>
